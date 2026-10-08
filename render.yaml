@@ -7,7 +7,7 @@ services:
   # ============================================================================
   - type: web
     name: quantum-engine
-    runtime: python
+    env: python
     region: oregon
     plan: free
     rootDir: quantum-engine
@@ -26,7 +26,7 @@ services:
   # ============================================================================
   - type: web
     name: qkd-chat-platform
-    runtime: node
+    env: node
     region: oregon
     plan: free
     rootDir: .
@@ -57,3 +57,4 @@ services:
 #   - name: qkd-postgres
 #     plan: free
 #     region: oregon
+
