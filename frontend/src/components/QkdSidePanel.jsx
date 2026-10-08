@@ -31,7 +31,7 @@ export default function QkdSidePanel({
   const progressPct = Math.min(100, Math.round((keyLengthBits / targetBits) * 100));
 
   return (
-    <aside className="w-full md:w-[420px] lg:w-[460px] bg-[#111b21] border-l border-[#222d34] flex flex-col h-full z-20 shadow-2xl transition-all">
+    <aside className="fixed inset-y-0 right-0 w-full sm:w-[420px] md:relative md:w-[420px] lg:w-[460px] bg-[#111b21] border-l border-[#222d34] flex flex-col h-full z-40 shadow-2xl transition-all">
       {/* Side Panel Header */}
       <div className="h-16 px-4 bg-[#202c33] border-b border-[#222d34] flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2.5">

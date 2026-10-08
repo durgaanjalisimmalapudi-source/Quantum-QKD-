@@ -328,23 +328,23 @@ export default function App() {
   return (
     <div className="h-screen w-screen flex flex-col bg-[#0c1317] overflow-hidden font-sans text-[#e9edef] antialiased">
       {/* Top Protocol Status Bar */}
-      <header className="h-12 bg-[#202c33] border-b border-[#222d34] px-4 flex items-center justify-between text-xs flex-shrink-0 z-20">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 font-bold text-white tracking-wide">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#00a884] animate-pulse"></span>
+      <header className="h-11 sm:h-12 bg-[#202c33] border-b border-[#222d34] px-3 sm:px-4 flex items-center justify-between text-xs flex-shrink-0 z-20">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#00a884] animate-pulse"></span>
+          <span className="font-bold text-white tracking-wide text-[11px] sm:text-xs">
             QUANTUM SECURE NETWORK
-          </div>
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setShowHistoryModal(true)}
-            className="px-2.5 py-1 bg-[#111b21] hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] border border-[#222d34] rounded transition font-mono flex items-center gap-1.5"
+            className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-[#111b21] hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] border border-[#222d34] rounded transition font-mono flex items-center gap-1 text-[11px]"
           >
-            <span>📜</span> Audit History
+            <span>📜</span> <span className="hidden sm:inline">Audit </span>History
           </button>
 
-          <div className="text-[11px] font-mono bg-[#111b21] px-2.5 py-0.5 rounded border border-[#222d34] text-[#00a884] font-bold">
+          <div className="text-[10px] sm:text-[11px] font-mono bg-[#111b21] px-2 py-0.5 rounded border border-[#222d34] text-[#00a884] font-bold max-w-[100px] sm:max-w-none truncate">
             {currentUser.name}
           </div>
         </div>
@@ -374,6 +374,15 @@ export default function App() {
           currentRound={currentRound}
           injectEve={injectEve}
         />
+
+        {/* Mobile Backdrop for Side Panel Drawer */}
+        {isSidePanelOpen && (
+          <div
+            onClick={() => setIsSidePanelOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden transition-opacity"
+            aria-hidden="true"
+          />
+        )}
 
         {/* Quantum Channel & Real Chart Side Panel */}
         <QkdSidePanel

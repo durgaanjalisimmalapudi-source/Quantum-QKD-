@@ -102,25 +102,25 @@ export default function LoginScreen({ onLoginSuccess }) {
       <div className="h-1.5 bg-[#00a884] w-full" />
 
       {/* Main Split Layout: Title on Left, Signup Interface on Right */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-8 py-8 sm:py-12 flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-16 my-auto">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-8 py-6 sm:py-12 flex flex-col lg:flex-row items-center justify-between gap-6 sm:gap-8 lg:gap-16 my-auto">
         {/* Left Side: Title & Subtitle */}
-        <div className="w-full lg:w-1/2 flex flex-col justify-center text-left">
-          <div className="w-12 h-12 rounded-xl bg-[#00a884]/20 border border-[#00a884]/40 flex items-center justify-center text-[#00a884] shadow-sm mb-4">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <div className="w-full lg:w-1/2 flex flex-col justify-center items-center lg:items-start text-center lg:text-left">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#00a884]/20 border border-[#00a884]/40 flex items-center justify-center text-[#00a884] shadow-sm mb-3 sm:mb-4">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
             </svg>
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-extrabold text-[#e9edef] tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-4xl lg:text-[42px] font-extrabold text-[#e9edef] tracking-tight leading-tight">
             QUANTUM SECURE CHAT PORTAL
           </h1>
-          <p className="text-base sm:text-lg text-[#00a884] font-medium mt-3 leading-relaxed">
+          <p className="text-sm sm:text-lg text-[#00a884] font-medium mt-2 sm:mt-3 leading-relaxed">
             Real dynamic E91 key distribution
           </p>
         </div>
 
         {/* Right Side: Auth Card (Sign In / Sign Up) */}
         <div className="w-full max-w-md flex-shrink-0">
-          <div className="bg-[#111b21] border border-[#222d34] rounded-2xl shadow-2xl p-6 sm:p-8 backdrop-blur-lg">
+          <div className="bg-[#111b21] border border-[#222d34] rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-8 backdrop-blur-lg">
           {/* Tabs: Sign In vs Sign Up */}
           <div className="flex items-center bg-[#202c33] p-1 rounded-xl mb-6 border border-[#222d34]">
             <button
@@ -301,7 +301,7 @@ export default function LoginScreen({ onLoginSuccess }) {
             <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2.5 text-center">
               Demo Accounts (1-Click Login)
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {demoAccounts.map((acc) => (
                 <button
                   key={acc.id}

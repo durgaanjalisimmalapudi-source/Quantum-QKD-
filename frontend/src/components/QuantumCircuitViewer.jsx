@@ -356,8 +356,8 @@ export default function QuantumCircuitViewer({
       </div>
 
       {/* Real-time Verdict Bar */}
-      <div className={`mt-3 p-2.5 rounded-lg border flex items-center justify-between gap-2 text-[11px] leading-tight ${verdict.bg}`}>
-        <span className={`font-medium truncate ${verdict.color}`}>
+      <div className={`mt-3 p-2.5 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 text-[11px] leading-tight ${verdict.bg}`}>
+        <span className={`font-medium ${verdict.color}`}>
           {verdict.text}
         </span>
         <span className="font-mono text-[#8696a0] text-[10px] flex-shrink-0">
