@@ -1,0 +1,151 @@
+/**
+ * Quantum Engine HTTP and WebSocket Client for UC025 QKD Platform.
+ *
+ * Interfaces with the Python / Qiskit FastAPI service:
+ * - Initiates quantum sessions via POST /engine/start
+ * - Consumes per-round streaming data over WebSocket
+ * - Relays round stats into PostgreSQL round_logs
+ * - Retrieves final sifted key directly into sessionKeyStore memory
+ */
+
+const WebSocket = require('ws');
+const { insertRoundLog, updateSessionStatus } = require('../db/client');
+const { deriveAesKey } = require('./cryptoService');
+const sessionKeyStore = require('./sessionKeyStore');
+
+let rawEngineUrl = (process.env.QUANTUM_ENGINE_URL || 'http://127.0.0.1:8000').trim().replace(/\/+$/, '');
+if (!rawEngineUrl.startsWith('http://') && !rawEngineUrl.startsWith('https://')) {
+  rawEngineUrl = `https://${rawEngineUrl}`;
+}
+const ENGINE_HTTP_URL = rawEngineUrl;
+const defaultWsUrl = ENGINE_HTTP_URL.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://');
+const ENGINE_WS_URL = (process.env.QUANTUM_ENGINE_WS_URL || defaultWsUrl).replace(/\/+$/, '');
+
+/**
+ * Initiates an E91 QKD simulation on the quantum engine.
+ */
+async function startSession({ sessionId, injectEve = false, targetKeyBits = 256, maxRounds = 1500, roundDelayMs = 25 }) {
+  const resp = await fetch(`${ENGINE_HTTP_URL}/engine/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_id: sessionId,
+      inject_eve: Boolean(injectEve),
+      target_key_bits: targetKeyBits,
+      max_rounds: maxRounds,
+      round_delay_ms: roundDelayMs,
+    }),
+  });
+
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    throw new Error(`Failed to start quantum engine session: ${resp.status} - ${errorText}`);
+  }
+
+  return await resp.json();
+}
+
+/**
+ * Retrieves final result from quantum engine.
+ */
+async function getSessionResult(sessionId) {
+  const resp = await fetch(`${ENGINE_HTTP_URL}/engine/result/${sessionId}`);
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch engine result for session ${sessionId}: ${resp.status}`);
+  }
+  return await resp.json();
+}
+
+/**
+ * Connects to the engine's WebSocket stream, persists round logs to DB,
+ * caches the final key in memory, and triggers callbacks.
+ */
+function streamEngineEvents(sessionId, callbacks = {}) {
+  const { onRoundStats, onEavesdropAlert, onSessionFinished, onError } = callbacks;
+  const wsUrl = `${ENGINE_WS_URL}/engine/ws/${sessionId}`;
+
+  const ws = new WebSocket(wsUrl);
+
+  ws.on('open', () => {
+    console.log(`[QuantumEngineWS] Connected for session ${sessionId}`);
+  });
+
+  ws.on('message', async (raw) => {
+    try {
+      const payload = JSON.parse(raw.toString());
+      const eventType = payload.event;
+
+      if (eventType === 'round_stats') {
+        const d = payload.data;
+        // Persist round log to PostgreSQL (never contains key material)
+        try {
+          await insertRoundLog({
+            sessionId,
+            roundNum: d.round_num,
+            qber: d.qber,
+            chshS: d.chsh_s,
+            anomalyFlagged: d.anomaly_flagged,
+            discarded: d.discarded,
+          });
+        } catch (dbErr) {
+          console.error(`[DB] Error persisting round ${d.round_num}:`, dbErr.message);
+        }
+
+        if (onRoundStats) onRoundStats(d);
+      } else if (eventType === 'eavesdrop_alert') {
+        console.warn(`[EavesdropAlert] Session ${sessionId} Round ${payload.round_num}: ${payload.reason}`);
+        if (onEavesdropAlert) onEavesdropAlert(payload);
+      } else if (eventType === 'session_finished') {
+        console.log(`[QuantumEngineWS] Session ${sessionId} finished.`);
+        const summary = payload.summary;
+
+        // Secure handling of derived key:
+        // Hold key strictly IN-MEMORY. Never log raw key or persist to DB.
+        if (summary.final_key_hex && summary.status === 'key_ready') {
+          try {
+            const derivedKey = deriveAesKey(summary.final_key_hex, sessionId);
+            sessionKeyStore.setKey(sessionId, derivedKey);
+            console.log(`[KeyStore] Derived 256-bit AES key successfully stored in-memory for session ${sessionId}`);
+          } catch (keyErr) {
+            console.error(`[KeyStore] Error deriving key:`, keyErr.message);
+          }
+        }
+
+        // Update DB session status and summaries (never key material)
+        try {
+          await updateSessionStatus(sessionId, {
+            status: summary.status,
+            final_qber: summary.final_qber,
+            final_chsh_s: summary.final_chsh_s,
+            key_length_bits: summary.key_length_bits,
+          });
+        } catch (dbErr) {
+          console.error(`[DB] Error updating final session status:`, dbErr.message);
+        }
+
+        if (onSessionFinished) onSessionFinished(summary);
+        ws.close();
+      }
+    } catch (parseErr) {
+      console.error(`[QuantumEngineWS] Error processing message:`, parseErr);
+    }
+  });
+
+  ws.on('error', (err) => {
+    console.error(`[QuantumEngineWS] Error for session ${sessionId}:`, err.message);
+    if (onError) onError(err);
+  });
+
+  ws.on('close', () => {
+    console.log(`[QuantumEngineWS] Connection closed for session ${sessionId}`);
+  });
+
+  return ws;
+}
+
+module.exports = {
+  startSession,
+  getSessionResult,
+  streamEngineEvents,
+};
+

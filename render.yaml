@@ -1,0 +1,59 @@
+# Render Blueprint for UC025 Dynamic E91 Quantum Secure Chat Platform
+# https://render.com/docs/blueprint-spec
+
+services:
+  # ============================================================================
+  # 1. QUANTUM ENGINE (Python 3 + FastAPI + Qiskit E91 Protocol Simulation)
+  # ============================================================================
+  - type: web
+    name: quantum-engine
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: quantum-engine
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+
+  # ============================================================================
+  # 2. FULL-STACK CHAT APP & ORCHESTRATOR (React Frontend + Node.js Backend)
+  # Builds Vite React app into frontend/dist, serves SPA statically,
+  # exposes REST APIs & Socket.IO WebSockets on a single unified URL.
+  # ============================================================================
+  - type: web
+    name: qkd-chat-platform
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: .
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: QUANTUM_ENGINE_URL
+        fromService:
+          type: web
+          name: quantum-engine
+          property: host
+      # Uncomment DATABASE_URL below if attaching a Render PostgreSQL instance
+      # - key: DATABASE_URL
+      #   fromDatabase:
+      #     name: qkd-postgres
+      #     property: connectionString
+
+# ============================================================================
+# OPTIONAL: Managed PostgreSQL Database (Free tier available on Render)
+# If omitted or unattached, the backend automatically uses its resilient
+# in-memory session and user store with zero downtime.
+# ============================================================================
+# databases:
+#   - name: qkd-postgres
+#     plan: free
+#     region: oregon
