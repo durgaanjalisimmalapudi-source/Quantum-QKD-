@@ -140,3 +140,4 @@ Once deployed, verify each component:
    - Click **Create Quantum Channel** to watch the real-time Qiskit 2-qubit circuit simulation with Hadamard & CNOT entangling gates, basis rotation angles, and photon pulses.
    - Send quantum-encrypted AES-GCM messages.
    - Toggle **Inject Eve** to verify Bell inequality violation ($S < 2$) and eavesdropping interception detection.
+

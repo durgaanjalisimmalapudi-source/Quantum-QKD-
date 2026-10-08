@@ -61,7 +61,7 @@ if (fs.existsSync(frontendDist)) {
 const PORT = process.env.PORT || 5001;
 
 if (require.main === module) {
-  server.listen(PORT, () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`======================================================`);
     console.log(`🚀 UC025 QKD Backend Server running on port ${PORT}`);
     console.log(`📡 REST API: http://localhost:${PORT}/api`);

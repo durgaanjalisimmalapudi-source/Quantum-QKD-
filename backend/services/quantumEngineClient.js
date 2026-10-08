@@ -15,7 +15,16 @@ const sessionKeyStore = require('./sessionKeyStore');
 
 let rawEngineUrl = (process.env.QUANTUM_ENGINE_URL || 'http://127.0.0.1:8000').trim().replace(/\/+$/, '');
 if (!rawEngineUrl.startsWith('http://') && !rawEngineUrl.startsWith('https://')) {
-  rawEngineUrl = `https://${rawEngineUrl}`;
+  if (!rawEngineUrl.includes('.') && !rawEngineUrl.includes(':')) {
+    // Internal Render service name without port (e.g. 'quantum-engine')
+    rawEngineUrl = `http://${rawEngineUrl}:10000`;
+  } else if (rawEngineUrl.includes(':')) {
+    // Internal hostname with port (e.g. 'quantum-engine:10000')
+    rawEngineUrl = `http://${rawEngineUrl}`;
+  } else {
+    // Public domain (e.g. 'quantum-engine-xxxx.onrender.com')
+    rawEngineUrl = `https://${rawEngineUrl}`;
+  }
 }
 const ENGINE_HTTP_URL = rawEngineUrl;
 const defaultWsUrl = ENGINE_HTTP_URL.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://');
