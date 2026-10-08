@@ -112,6 +112,16 @@ function emitEncryptedMessage(sessionId, message) {
   io.emit('encrypted_message', { sessionId, message });
 }
 
+function emitChannelStarted(payload) {
+  if (!io) return;
+  io.emit('channel_started', payload);
+}
+
+function emitChannelEstablished(payload) {
+  if (!io) return;
+  io.emit('channel_established', payload);
+}
+
 module.exports = {
   initSocket,
   getIo,
@@ -121,5 +131,7 @@ module.exports = {
   emitEavesdropAlert,
   emitKeyReady,
   emitEncryptedMessage,
+  emitChannelStarted,
+  emitChannelEstablished,
 };
 

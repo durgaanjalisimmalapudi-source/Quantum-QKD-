@@ -6,6 +6,7 @@ import {
   getSessionStatus,
   getConversationMessages,
   getOnlineUsers,
+  getActiveChannel,
 } from './services/api';
 
 import LoginScreen from './components/LoginScreen';
@@ -98,12 +99,32 @@ export default function App() {
     }
   }, [currentUser, selectedContact]);
 
-  const handleSelectContact = useCallback((contact) => {
+  const handleSelectContact = useCallback(async (contact) => {
     if (selectedContact?.email?.toLowerCase() !== contact?.email?.toLowerCase()) {
-      resetQuantumChannel();
       setSelectedContact(contact);
+      loadConversation(contact?.email);
+
+      // Check if an active shared quantum channel was already established between these two users
+      if (currentUser?.email && contact?.email) {
+        try {
+          const channelInfo = await getActiveChannel(currentUser.email, contact.email);
+          if (channelInfo && channelInfo.active && channelInfo.sessionId) {
+            console.log(`[QKD] Found existing active quantum channel with ${contact.name}:`, channelInfo.sessionId);
+            setActiveSessionId(channelInfo.sessionId);
+            setSessionStatus(channelInfo.status || 'key_ready');
+            setKeyLengthBits(channelInfo.keyLengthBits || 128);
+            socket.emit('join_session', channelInfo.sessionId);
+            return;
+          }
+        } catch (e) {
+          console.warn('[QKD] Error checking active channel:', e);
+        }
+      }
+
+      // No active channel yet between this pair
+      resetQuantumChannel();
     }
-  }, [selectedContact, resetQuantumChannel]);
+  }, [selectedContact, currentUser, resetQuantumChannel]);
 
   const loadConversation = async (contactEmail) => {
     if (!currentUser?.email || !contactEmail) return;
@@ -157,6 +178,46 @@ export default function App() {
       setKeyLengthBits(summary.key_length_bits);
     };
 
+    // Shared channel events: syncs both Alice and Bob simultaneously
+    const handleChannelStarted = (payload) => {
+      const { sessionId, user1, user2 } = payload;
+      if (!currentUser?.email || !selectedContact?.email) return;
+
+      const myEmail = currentUser.email.toLowerCase();
+      const peerEmail = selectedContact.email.toLowerCase();
+      const u1 = (user1 || '').toLowerCase();
+      const u2 = (user2 || '').toLowerCase();
+
+      if ((u1 === myEmail && u2 === peerEmail) || (u2 === myEmail && u1 === peerEmail)) {
+        console.log(`[Socket.IO] Quantum channel started between ${u1} and ${u2}:`, sessionId);
+        setActiveSessionId(sessionId);
+        setSessionStatus('running');
+        setRounds([]);
+        setCurrentRound(null);
+        setActiveAlert(null);
+        setKeyLengthBits(0);
+        socket.emit('join_session', sessionId);
+      }
+    };
+
+    const handleChannelEstablished = (payload) => {
+      const { sessionId, user1, user2, status, keyLengthBits: bits } = payload;
+      if (!currentUser?.email || !selectedContact?.email) return;
+
+      const myEmail = currentUser.email.toLowerCase();
+      const peerEmail = selectedContact.email.toLowerCase();
+      const u1 = (user1 || '').toLowerCase();
+      const u2 = (user2 || '').toLowerCase();
+
+      if ((u1 === myEmail && u2 === peerEmail) || (u2 === myEmail && u1 === peerEmail)) {
+        console.log(`[Socket.IO] Quantum channel established between ${u1} and ${u2}:`, sessionId);
+        setActiveSessionId(sessionId);
+        setSessionStatus(status || 'key_ready');
+        setKeyLengthBits(bits || 128);
+        socket.emit('join_session', sessionId);
+      }
+    };
+
     const handleEncryptedMessage = (payload) => {
       const msg = payload.message || payload;
       if (!msg || !currentUser) return;
@@ -179,12 +240,16 @@ export default function App() {
     socket.on('round_stats', handleRoundStats);
     socket.on('eavesdrop_alert', handleEavesdropAlert);
     socket.on('key_ready', handleKeyReady);
+    socket.on('channel_started', handleChannelStarted);
+    socket.on('channel_established', handleChannelEstablished);
     socket.on('encrypted_message', handleEncryptedMessage);
 
     return () => {
       socket.off('round_stats', handleRoundStats);
       socket.off('eavesdrop_alert', handleEavesdropAlert);
       socket.off('key_ready', handleKeyReady);
+      socket.off('channel_started', handleChannelStarted);
+      socket.off('channel_established', handleChannelEstablished);
       socket.off('encrypted_message', handleEncryptedMessage);
     };
   }, [activeSessionId, currentUser, selectedContact, appendMessageUnique]);
@@ -205,6 +270,8 @@ export default function App() {
         injectEve,
         targetKeyBits: Number(targetBits),
         roundDelayMs: 25,
+        user1: currentUser?.email,
+        user2: selectedContact?.email,
       });
 
       setActiveSessionId(res.sessionId);

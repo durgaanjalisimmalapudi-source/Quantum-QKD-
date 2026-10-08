@@ -55,11 +55,24 @@ export async function getOnlineUsers() {
   return await resp.json();
 }
 
-export async function startSession({ siteA, siteB, injectEve, targetKeyBits = 128, roundDelayMs = 25 }) {
+export async function getActiveChannel(user1, user2) {
+  if (!user1 || !user2) return { active: false };
+  try {
+    const resp = await fetch(
+      `${BASE_URL}/api/session/active?user1=${encodeURIComponent(user1)}&user2=${encodeURIComponent(user2)}`
+    );
+    if (!resp.ok) return { active: false };
+    return await resp.json();
+  } catch {
+    return { active: false };
+  }
+}
+
+export async function startSession({ siteA, siteB, injectEve, targetKeyBits = 128, roundDelayMs = 25, user1, user2 }) {
   const resp = await fetch(`${BASE_URL}/api/session/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ siteA, siteB, injectEve, targetKeyBits, roundDelayMs }),
+    body: JSON.stringify({ siteA, siteB, injectEve, targetKeyBits, roundDelayMs, user1, user2 }),
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ error: 'Failed to start session' }));

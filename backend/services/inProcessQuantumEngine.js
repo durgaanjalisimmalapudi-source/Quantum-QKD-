@@ -386,3 +386,4 @@ module.exports = {
   registerCallbacks,
   hasSession,
 };
+

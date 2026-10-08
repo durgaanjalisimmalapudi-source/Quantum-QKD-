@@ -17,11 +17,37 @@ const {
   emitRoundStats,
   emitEavesdropAlert,
   emitKeyReady,
+  emitChannelStarted,
+  emitChannelEstablished,
 } = require('../socket');
 
 /**
+ * GET /api/session/active?user1=...&user2=...
+ * Checks if an active, shared quantum channel exists between two operators.
+ */
+router.get('/active', (req, res) => {
+  const { user1, user2 } = req.query;
+  if (!user1 || !user2) {
+    return res.status(400).json({ error: 'Both user1 and user2 query parameters are required' });
+  }
+
+  const activeChannel = sessionKeyStore.getActiveChannelForPair(user1, user2);
+  if (activeChannel) {
+    return res.json({
+      active: true,
+      sessionId: activeChannel.sessionId,
+      status: activeChannel.status,
+      keyLengthBits: activeChannel.keyLengthBits,
+      createdAt: activeChannel.createdAt,
+    });
+  }
+
+  return res.json({ active: false });
+});
+
+/**
  * POST /api/session/start
- * Starts a new E91 QKD session between two sites.
+ * Starts a new E91 QKD session between two sites / users.
  */
 router.post('/start', async (req, res) => {
   try {
@@ -31,6 +57,8 @@ router.post('/start', async (req, res) => {
       injectEve = false,
       targetKeyBits = 256,
       roundDelayMs = 30,
+      user1,
+      user2,
     } = req.body;
 
     const sessionId = crypto.randomUUID();
@@ -42,6 +70,14 @@ router.post('/start', async (req, res) => {
       site_b_name: siteB,
       inject_eve: Boolean(injectEve),
     });
+
+    if (user1 && user2) {
+      emitChannelStarted({
+        sessionId,
+        user1: user1.trim().toLowerCase(),
+        user2: user2.trim().toLowerCase(),
+      });
+    }
 
     // 2. Start session on Quantum Engine
     await quantumEngineClient.startSession({
@@ -62,6 +98,24 @@ router.post('/start', async (req, res) => {
       },
       onSessionFinished: (summary) => {
         emitKeyReady(sessionId, summary);
+
+        // If key ready, set the active shared channel for BOTH participants!
+        if (summary.status === 'key_ready' && user1 && user2) {
+          sessionKeyStore.setActiveChannelForPair(
+            user1,
+            user2,
+            sessionId,
+            'key_ready',
+            summary.key_length_bits || targetKeyBits
+          );
+          emitChannelEstablished({
+            sessionId,
+            user1: user1.trim().toLowerCase(),
+            user2: user2.trim().toLowerCase(),
+            status: 'key_ready',
+            keyLengthBits: summary.key_length_bits || targetKeyBits,
+          });
+        }
       },
       onError: (err) => {
         console.error(`[SessionRoute] Engine stream error for ${sessionId}:`, err.message);

@@ -25,7 +25,7 @@ const { emitEncryptedMessage } = require('../socket');
  */
 router.post('/send', async (req, res) => {
   try {
-    const {
+    let {
       sessionId,
       direction = 'A_to_B',
       text,
@@ -37,17 +37,22 @@ router.post('/send', async (req, res) => {
       return res.status(400).json({ error: 'Text message is required' });
     }
 
-    if (!sessionId) {
-      return res.status(400).json({
-        error: 'Quantum channel required. Please initialize an E91 quantum channel before sending messages.',
-      });
+    // Try finding key by sessionId first
+    let key = sessionId ? sessionKeyStore.getKey(sessionId) : null;
+
+    // If key not found or sessionId not passed, look up active shared channel between sender & receiver
+    if (!key && senderEmail && receiverEmail) {
+      const activePair = sessionKeyStore.getActiveChannelForPair(senderEmail, receiverEmail);
+      if (activePair && activePair.sessionId) {
+        sessionId = activePair.sessionId;
+        key = sessionKeyStore.getKey(sessionId);
+        console.log(`[MessageRoute] Auto-resolved active quantum channel ${sessionId} for pair ${senderEmail} <-> ${receiverEmail}`);
+      }
     }
 
-    // Retrieve active session key from memory
-    const key = sessionKeyStore.getKey(sessionId);
     if (!key) {
       return res.status(400).json({
-        error: 'No active QKD session key armed for this channel. Complete an E91 quantum key exchange first.',
+        error: 'Quantum channel required. Neither operator has initialized an active E91 quantum channel for this chat yet.',
       });
     }
 
