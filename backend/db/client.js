@@ -40,7 +40,7 @@ pool.on('error', (err) => {
 const memoryUsers = new Map();
 const memorySessions = new Map();
 const memoryRoundLogs = new Map(); // sessionId -> array of rounds
-const memoryMessageLogs = [];
+let memoryMessageLogs = [];
 
 function hashPassword(password, salt) {
   if (!salt) {
@@ -509,6 +509,35 @@ async function getConversationMessages(user1Email, user2Email) {
   });
 }
 
+async function clearConversationMessages(user1Email, user2Email) {
+  const e1 = (user1Email || '').trim().toLowerCase();
+  const e2 = (user2Email || '').trim().toLowerCase();
+
+  // Clear from memory store
+  const initialLen = memoryMessageLogs.length;
+  memoryMessageLogs = memoryMessageLogs.filter((m) => {
+    const s = (m.sender_email || m.senderEmail || '').toLowerCase();
+    const r = (m.receiver_email || m.receiverEmail || '').toLowerCase();
+    return !((s === e1 && r === e2) || (s === e2 && r === e1));
+  });
+  const memDeleted = initialLen - memoryMessageLogs.length;
+
+  let dbDeleted = 0;
+  try {
+    const query = `
+      DELETE FROM message_logs
+      WHERE (LOWER(sender_email) = $1 AND LOWER(receiver_email) = $2)
+         OR (LOWER(sender_email) = $2 AND LOWER(receiver_email) = $1);
+    `;
+    const res = await pool.query(query, [e1, e2]);
+    dbDeleted = res.rowCount || 0;
+  } catch (err) {
+    console.warn('[DB Fallback] Cleared conversation from memory store:', err.message);
+  }
+
+  return { deletedCount: Math.max(memDeleted, dbDeleted) };
+}
+
 module.exports = {
   pool,
   // User Auth
@@ -530,4 +559,5 @@ module.exports = {
   getMessage,
   getSessionMessages,
   getConversationMessages,
+  clearConversationMessages,
 };

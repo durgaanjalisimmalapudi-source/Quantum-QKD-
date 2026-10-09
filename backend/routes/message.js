@@ -14,10 +14,11 @@ const {
   getMessage,
   getSessionMessages,
   getConversationMessages,
+  clearConversationMessages,
 } = require('../db/client');
 const { encrypt, decrypt } = require('../services/cryptoService');
 const sessionKeyStore = require('../services/sessionKeyStore');
-const { emitEncryptedMessage } = require('../socket');
+const { emitEncryptedMessage, emitChatCleared } = require('../socket');
 
 /**
  * POST /api/message/send
@@ -122,6 +123,39 @@ router.get('/conversation', async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+
+/**
+ * DELETE /api/message/clear & POST /api/message/clear
+ * Body or Query: { user1, user2 }
+ * Permanently deletes all encrypted messages in the conversation between user1 and user2.
+ */
+const handleClearConversation = async (req, res) => {
+  try {
+    const user1 = req.body?.user1 || req.query?.user1;
+    const user2 = req.body?.user2 || req.query?.user2;
+
+    if (!user1 || !user2) {
+      return res.status(400).json({ error: 'user1 and user2 parameters are required' });
+    }
+
+    const result = await clearConversationMessages(user1, user2);
+
+    // Notify active clients in real time via Socket.IO
+    emitChatCleared({ user1, user2 });
+
+    return res.json({
+      success: true,
+      message: 'Conversation cleared successfully',
+      deletedCount: result?.deletedCount ?? 0,
+    });
+  } catch (err) {
+    console.error('[MessageRoute] Error clearing conversation:', err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+router.delete('/clear', handleClearConversation);
+router.post('/clear', handleClearConversation);
 
 /**
  * GET /api/message/:id/decrypted

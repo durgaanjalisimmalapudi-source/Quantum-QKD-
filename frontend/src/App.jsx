@@ -5,6 +5,7 @@ import {
   getSessionRounds,
   getSessionStatus,
   getConversationMessages,
+  clearConversation,
   getOnlineUsers,
   getActiveChannel,
 } from './services/api';
@@ -237,12 +238,27 @@ export default function App() {
       }
     };
 
+    const handleChatCleared = (payload) => {
+      const { user1, user2 } = payload || {};
+      if (!currentUser?.email || !selectedContact?.email) return;
+
+      const myEmail = currentUser.email.toLowerCase();
+      const peerEmail = selectedContact.email.toLowerCase();
+      const u1 = (user1 || '').toLowerCase();
+      const u2 = (user2 || '').toLowerCase();
+
+      if ((u1 === myEmail && u2 === peerEmail) || (u2 === myEmail && u1 === peerEmail)) {
+        setMessages([]);
+      }
+    };
+
     socket.on('round_stats', handleRoundStats);
     socket.on('eavesdrop_alert', handleEavesdropAlert);
     socket.on('key_ready', handleKeyReady);
     socket.on('channel_started', handleChannelStarted);
     socket.on('channel_established', handleChannelEstablished);
     socket.on('encrypted_message', handleEncryptedMessage);
+    socket.on('chat_cleared', handleChatCleared);
 
     return () => {
       socket.off('round_stats', handleRoundStats);
@@ -251,8 +267,15 @@ export default function App() {
       socket.off('channel_started', handleChannelStarted);
       socket.off('channel_established', handleChannelEstablished);
       socket.off('encrypted_message', handleEncryptedMessage);
+      socket.off('chat_cleared', handleChatCleared);
     };
   }, [activeSessionId, currentUser, selectedContact, appendMessageUnique]);
+
+  const handleClearChat = useCallback(async () => {
+    if (!currentUser?.email || !selectedContact?.email) return;
+    await clearConversation(currentUser.email, selectedContact.email);
+    setMessages([]);
+  }, [currentUser, selectedContact]);
 
   // Start E91 Quantum Key Distribution
   const handleStartSession = async () => {
@@ -373,6 +396,7 @@ export default function App() {
           targetBits={targetBits}
           currentRound={currentRound}
           injectEve={injectEve}
+          onClearChat={handleClearChat}
         />
 
         {/* Mobile Backdrop for Side Panel Drawer */}

@@ -134,3 +134,16 @@ export async function getSessionMessages(sessionId) {
   if (!resp.ok) throw new Error('Failed to fetch messages');
   return await resp.json();
 }
+
+export async function clearConversation(user1, user2) {
+  const resp = await fetch(`${BASE_URL}/api/message/clear`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user1, user2 }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: 'Failed to clear chat' }));
+    throw new Error(err.error || 'Failed to clear chat');
+  }
+  return await resp.json();
+}

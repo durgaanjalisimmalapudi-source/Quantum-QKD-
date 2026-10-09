@@ -122,6 +122,11 @@ function emitChannelEstablished(payload) {
   io.emit('channel_established', payload);
 }
 
+function emitChatCleared(payload) {
+  if (!io) return;
+  io.emit('chat_cleared', payload);
+}
+
 module.exports = {
   initSocket,
   getIo,
@@ -133,5 +138,6 @@ module.exports = {
   emitEncryptedMessage,
   emitChannelStarted,
   emitChannelEstablished,
+  emitChatCleared,
 };
 
